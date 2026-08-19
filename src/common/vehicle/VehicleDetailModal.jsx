@@ -1,5 +1,5 @@
 // src/common/vehicle/VehicleDetailModal.jsx
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import dayjs from 'dayjs';
@@ -24,13 +24,20 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import PendingIcon from '@mui/icons-material/Pending';
 
 import { useTranslation } from '../components/LocalizationProvider';
+import AddressValue from '../components/AddressValue';
 import RemoveDialog from '../components/RemoveDialog';
 import { useDeviceReadonly, useRestriction } from '../util/permissions';
 import { useAttributePreference } from '../util/preferences';
 import { devicesActions } from '../../store';
 import { useCatch, useCatchCallback } from '../../reactHelper';
 import fetchOrThrow from '../util/fetchOrThrow';
-import { formatSpeed, formatVoltage, formatTemperature, formatNumber } from '../util/formatter';
+import {
+  formatSpeed,
+  formatVoltage,
+  formatTemperature,
+  formatNumber,
+  formatTime,
+} from '../util/formatter';
 import { getVehicleStatus, COLOR_OK, COLOR_ALERT, COLOR_INFO } from './vehicleAttributes';
 import VanDiagram from './VanDiagram';
 import VehicleStatRow from './VehicleStatRow';
@@ -86,6 +93,15 @@ const useStyles = makeStyles()((theme) => ({
     display: 'block',
     marginBottom: theme.spacing(1),
   },
+  address: {
+    color: theme.palette.text.secondary,
+    display: 'block',
+    marginBottom: theme.spacing(1),
+    // Una dirección larga no trae espacios "cortables" en el punto justo (o el
+    // enlace "Mostrar dirección" es una sola palabra): sin esto, texto largo
+    // podría desbordar la columna fija de 190px en vez de partirse de línea.
+    overflowWrap: 'break-word',
+  },
   masDetalles: {
     display: 'block',
     marginTop: theme.spacing(2),
@@ -128,6 +144,41 @@ const VehicleDetailModal = ({ deviceId, position, onClose, disableActions }) => 
 
   const [anchorEl, setAnchorEl] = useState(null);
   const [removing, setRemoving] = useState(false);
+
+  const [lastIgnition, setLastIgnition] = useState(undefined);
+
+  // La última ignición no viene en la posición: Traccar la registra como evento
+  // aparte. Se consulta al abrir el modal, con una ventana de 30 días — FURGON_1
+  // llega a estar una semana entera sin encenderse, así que una ventana corta
+  // daría "sin registro" en un furgón que sí funciona.
+  useEffect(() => {
+    let cancelled = false;
+    setLastIgnition(undefined);
+    const to = new Date();
+    const from = new Date(to.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const query = new URLSearchParams({
+      deviceId,
+      type: 'ignitionOn',
+      from: from.toISOString(),
+      to: to.toISOString(),
+    });
+    fetchOrThrow(`/api/reports/events?${query.toString()}`, {
+      headers: { Accept: 'application/json' },
+    })
+      .then((response) => response.json())
+      .then((events) => {
+        // Vienen en orden ascendente: el último es el más reciente.
+        if (!cancelled && events.length) {
+          setLastIgnition(events[events.length - 1].eventTime);
+        }
+      })
+      // Es un dato secundario: si la consulta falla, la fila no aparece y ya.
+      // Molestar con un error en pantalla por esto sería peor que omitirlo.
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [deviceId]);
 
   const handleRemove = useCatch(async (removed) => {
     if (removed) {
@@ -219,6 +270,15 @@ const VehicleDetailModal = ({ deviceId, position, onClose, disableActions }) => 
                 {device.name}
                 {lastUpdate && ` · ${lastUpdate}`}
               </Typography>
+              {position && (
+                <Typography variant="caption" className={classes.address}>
+                  <AddressValue
+                    latitude={position.latitude}
+                    longitude={position.longitude}
+                    originalAddress={position.address}
+                  />
+                </Typography>
+              )}
               {position && <VanDiagram status={status} />}
             </Box>
 
@@ -272,6 +332,10 @@ const VehicleDetailModal = ({ deviceId, position, onClose, disableActions }) => 
               <VehicleStatRow
                 label="Freno de mano"
                 value={status.frenoMano !== undefined ? String(status.frenoMano) : undefined}
+              />
+              <VehicleStatRow
+                label={ignition === true ? 'Encendido desde' : 'Última ignición'}
+                value={lastIgnition ? formatTime(lastIgnition, 'minutes') : undefined}
               />
             </Box>
           </Box>
