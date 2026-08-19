@@ -45,7 +45,7 @@ const VehicleStatRow = ({ label, value, barPercent, barColor }) => {
       <Typography variant="body2" className={classes.label}>
         {label}
       </Typography>
-      {barPercent !== undefined && (
+      {barPercent !== undefined && barPercent !== null && (
         <Box className={classes.barTrack}>
           <Box
             className={classes.barFill}
