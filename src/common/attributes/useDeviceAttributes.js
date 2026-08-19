@@ -32,6 +32,10 @@ export default (t) =>
         name: t('attributeForwardUrl'),
         type: 'string',
       },
+      patente: {
+        name: 'Patente',
+        type: 'string',
+      },
     }),
     [t],
   );
