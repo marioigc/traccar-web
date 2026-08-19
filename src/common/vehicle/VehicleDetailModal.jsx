@@ -31,7 +31,7 @@ import { devicesActions } from '../../store';
 import { useCatch, useCatchCallback } from '../../reactHelper';
 import fetchOrThrow from '../util/fetchOrThrow';
 import { formatSpeed, formatVoltage, formatTemperature, formatNumber } from '../util/formatter';
-import { getVehicleStatus } from './vehicleAttributes';
+import { getVehicleStatus, COLOR_OK, COLOR_ALERT, COLOR_INFO } from './vehicleAttributes';
 import VanDiagram from './VanDiagram';
 import VehicleStatRow from './VehicleStatRow';
 
@@ -99,11 +99,13 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-// Rango normal de temperatura de refrigerante **con el motor en marcha**. Un
-// furgón estacionado reporta la temperatura ambiente — Furgón 2 marca 20 °C — y
-// eso es perfectamente normal, no una alerta. Por eso la alarma solo aplica con
-// el motor encendido; si no, la barra va siempre en verde.
-const TEMP_MIN_OK = 70;
+// Solo se alerta por SOBRE-temperatura. Un motor recién encendido, en frío,
+// pasa varios minutos de cada viaje por debajo de este umbral — eso es
+// arranque normal, no una falla. No hay piso de temperatura mínima: no existe
+// un "muy frío" que sea una alerta del vehículo, a diferencia de "muy
+// caliente", que sí lo es. Por eso la alarma también exige el motor
+// encendido: un furgón estacionado reporta la temperatura ambiente — Furgón 2
+// marca 20 °C — y eso tampoco es una alerta.
 const TEMP_MAX_OK = 105;
 const RPM_MAX = 4000;
 
@@ -170,13 +172,28 @@ const VehicleDetailModal = ({ deviceId, position, onClose, disableActions }) => 
     : undefined;
 
   // "hace X min". Sin esto, una posición de hace 18 horas se lee como el estado
-  // actual del furgón — que es exactamente el caso real de FURGON_1.
-  const lastUpdate = device.lastUpdate ? dayjs(device.lastUpdate).fromNow() : null;
+  // actual del furgón — que es exactamente el caso real de FURGON_1. Se usa
+  // `position.fixTime`, no `device.lastUpdate`: todas las métricas de esta
+  // pantalla salen de `position`, y `device.lastUpdate` avanza con cualquier
+  // mensaje del equipo (no solo los que traen posición/atributos nuevos), por
+  // lo que podría mostrar una antigüedad más reciente que la del dato real en
+  // pantalla.
+  const lastUpdate = position?.fixTime ? dayjs(position.fixTime).fromNow() : null;
 
   const tempAlert =
-    status.tempMotor !== undefined &&
-    ignition === true &&
-    (status.tempMotor < TEMP_MIN_OK || status.tempMotor > TEMP_MAX_OK);
+    status.tempMotor !== undefined && ignition === true && status.tempMotor > TEMP_MAX_OK;
+
+  // Dos atributos independientes: un equipo puede reportar litros sin
+  // porcentaje (o viceversa). La fila se muestra con lo que exista, en vez de
+  // depender por completo de `combustiblePct`.
+  const combustibleParts = [];
+  if (status.combustiblePct !== undefined) {
+    combustibleParts.push(`${formatNumber(status.combustiblePct, 0)}%`);
+  }
+  if (status.combustibleLitros !== undefined) {
+    combustibleParts.push(`${formatNumber(status.combustibleLitros, 1)} L`);
+  }
+  const combustibleValue = combustibleParts.length > 0 ? combustibleParts.join(' · ') : undefined;
 
   return (
     <>
@@ -209,7 +226,9 @@ const VehicleDetailModal = ({ deviceId, position, onClose, disableActions }) => 
               <VehicleStatRow
                 label="Kilometraje"
                 value={
-                  status.kmReal !== undefined ? `${formatNumber(status.kmReal, 0)} km` : undefined
+                  status.kmReal !== undefined
+                    ? `${status.kmReal.toLocaleString('es-CL', { maximumFractionDigits: 0 })} km`
+                    : undefined
                 }
               />
               <VehicleStatRow
@@ -224,7 +243,7 @@ const VehicleDetailModal = ({ deviceId, position, onClose, disableActions }) => 
                 label="RPM"
                 value={status.rpm !== undefined ? formatNumber(status.rpm, 0) : undefined}
                 barPercent={status.rpm !== undefined ? (status.rpm / RPM_MAX) * 100 : undefined}
-                barColor="#5fa8ff"
+                barColor={COLOR_INFO}
               />
               <VehicleStatRow
                 label="Temp. motor"
@@ -234,21 +253,13 @@ const VehicleDetailModal = ({ deviceId, position, onClose, disableActions }) => 
                 barPercent={
                   status.tempMotor !== undefined ? (status.tempMotor / 120) * 100 : undefined
                 }
-                barColor={tempAlert ? '#e05a5a' : '#5fd67f'}
+                barColor={tempAlert ? COLOR_ALERT : COLOR_OK}
               />
               <VehicleStatRow
                 label="Combustible"
-                value={
-                  status.combustiblePct !== undefined
-                    ? `${formatNumber(status.combustiblePct, 0)}%${
-                        status.combustibleLitros !== undefined
-                          ? ` · ${formatNumber(status.combustibleLitros, 1)} L`
-                          : ''
-                      }`
-                    : undefined
-                }
+                value={combustibleValue}
                 barPercent={status.combustiblePct}
-                barColor="#5fd67f"
+                barColor={COLOR_OK}
               />
               <VehicleStatRow
                 label="Voltaje"

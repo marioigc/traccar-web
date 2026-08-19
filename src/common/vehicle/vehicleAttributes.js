@@ -12,6 +12,7 @@
 export const COLOR_OK = '#5fd67f';
 export const COLOR_ALERT = '#e05a5a';
 export const COLOR_UNKNOWN = '#555b66';
+export const COLOR_INFO = '#5fa8ff';
 
 export const COLOR_LIGHT_LOW = '#fff4d6';
 export const COLOR_LIGHT_POSITION = '#ffb84d';
@@ -29,17 +30,26 @@ export const isOpen = (value) => value === true || value === 'Abierta' || value 
 // apagado). Se descarta para no mostrar "0.00 V" como si fuera un dato real.
 const validVoltage = (value) => (typeof value === 'number' && value > 0 ? value : undefined);
 
+// Los atributos numéricos pueden llegar como `null` (equipo que reporta el
+// campo pero sin lectura) o como string, no solo `undefined` (campo ausente).
+// `formatNumber`/`formatTemperature` hacen `.toFixed()` directo y lanzan
+// TypeError con cualquiera de esos dos casos, y el ErrorBoundary de la app
+// reemplaza toda la pantalla, no solo el modal. Se normaliza aquí, en la capa
+// de datos, para que cualquier consumidor de `getVehicleStatus` — no solo
+// este modal — reciba siempre un número válido o `undefined`.
+const num = (value) => (typeof value === 'number' && Number.isFinite(value) ? value : undefined);
+
 export const getVehicleStatus = (position, device) => {
   const a = position?.attributes || {};
 
   return {
     patente: device?.attributes?.patente,
 
-    kmReal: a.kmReal,
-    rpm: a.rpmReal,
-    tempMotor: a.tempRefrigerante,
-    combustiblePct: a.combustiblePct,
-    combustibleLitros: a.combustibleLitros,
+    kmReal: num(a.kmReal),
+    rpm: num(a.rpmReal),
+    tempMotor: num(a.tempRefrigerante),
+    combustiblePct: num(a.combustiblePct),
+    combustibleLitros: num(a.combustibleLitros),
     voltajeVehiculo: validVoltage(a.bateriaVehiculo),
     frenoMano: a.frenoMano,
 
