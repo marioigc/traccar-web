@@ -396,6 +396,158 @@ export default (t) =>
         type: 'number',
         dataType: 'speed',
       },
+
+      // ── Atributos Computados de SETEL ──────────────────────────────────────
+      // Son los que traducen los io### crudos del equipo a datos con significado.
+      // Sin estas definiciones los reportes los listan con la clave cruda
+      // ("kmReal", "puertaTrasDer"), porque Traccar solo conoce los suyos.
+      // Los nombres van como literales en español: la app es español-only para
+      // SETEL, y una clave de traducción que solo exista en es.json saldría en
+      // blanco en cualquier otro idioma (el proveedor no tiene fallback).
+      //
+      // Sobre `dataType`: solo se pone cuando la unidad del dato coincide con lo
+      // que espera el formateador. `distance` convierte desde METROS y `speed`
+      // desde NUDOS, así que ponerlos donde el dato ya viene en km o km/h daría
+      // un número mal convertido — peor que un número sin unidad.
+
+      kmReal: {
+        // Ya viene en kilómetros, no en metros: sin dataType 'distance', que
+        // convertiría desde metros y mostraría 100 km como 0,1 km.
+        name: 'Kilometraje real (km)',
+        type: 'number',
+      },
+      kmDesdeInstalacion: {
+        name: 'Kilometraje desde instalación (km)',
+        type: 'number',
+      },
+      combustiblePct: {
+        name: 'Combustible (%)',
+        type: 'number',
+        dataType: 'percentage',
+      },
+      combustibleLitros: {
+        name: 'Combustible (litros)',
+        type: 'number',
+        dataType: 'volume',
+      },
+      combustibleConsumido: {
+        name: 'Combustible consumido (litros)',
+        type: 'number',
+        dataType: 'volume',
+      },
+      rpmReal: {
+        name: 'RPM del motor',
+        type: 'number',
+      },
+      velocidadReal: {
+        // Bug confirmado de escala (~1,85x) en el perfil CAN de este vehículo.
+        // Se deja visible pero rotulado, en vez de ocultarlo: alguien que lo
+        // seleccione en un reporte tiene que saber que no puede confiar en él.
+        // Tampoco lleva dataType 'speed', que convertiría desde nudos.
+        name: 'Velocidad CAN (no confiable, ver docs)',
+        type: 'number',
+      },
+      tempRefrigerante: {
+        // No hay dataType de temperatura; la unidad va en el nombre.
+        name: 'Temperatura del refrigerante (°C)',
+        type: 'number',
+      },
+      posicionAcelerador: {
+        name: 'Pedal del acelerador (%)',
+        type: 'number',
+        dataType: 'percentage',
+      },
+      anguloVolante: {
+        name: 'Ángulo del volante (°)',
+        type: 'number',
+      },
+      bateriaVehiculo: {
+        name: 'Voltaje del vehículo',
+        type: 'number',
+        dataType: 'voltage',
+      },
+      bateriaGps: {
+        name: 'Batería del equipo GPS',
+        type: 'number',
+        dataType: 'voltage',
+      },
+
+      frenoMano: {
+        name: 'Freno de mano',
+        type: 'string',
+      },
+      frenoPisado: {
+        name: 'Freno pisado',
+        type: 'boolean',
+      },
+      embraguePisado: {
+        name: 'Embrague pisado',
+        type: 'boolean',
+      },
+      controlCrucero: {
+        name: 'Control crucero',
+        type: 'boolean',
+      },
+      aireAcondicionado: {
+        name: 'Aire acondicionado',
+        type: 'boolean',
+      },
+
+      // Nombres por posición en el vehículo, no por el lado del que vienen en el
+      // bus: "Puerta lateral derecha" es lo que el usuario ve en el furgón.
+      puertaDelIzq: {
+        name: 'Puerta del chofer',
+        type: 'string',
+      },
+      puertaDelDer: {
+        name: 'Puerta del copiloto',
+        type: 'string',
+      },
+      puertaTrasDer: {
+        name: 'Puerta lateral derecha',
+        type: 'string',
+      },
+      puertaTrasIzq: {
+        name: 'Puerta trasera izquierda',
+        type: 'string',
+      },
+      maletero: {
+        name: 'Maletero',
+        type: 'string',
+      },
+      cinturonDelIzq: {
+        name: 'Cinturón del chofer',
+        type: 'boolean',
+      },
+      cinturonDelDer: {
+        name: 'Cinturón del copiloto',
+        type: 'boolean',
+      },
+
+      lucesEncendidas: {
+        name: 'Luces encendidas',
+        type: 'boolean',
+      },
+      luzPosicion: {
+        name: 'Luz de posición',
+        type: 'boolean',
+      },
+      luzBaja: {
+        name: 'Luz baja',
+        type: 'boolean',
+      },
+      luzNiebla: {
+        name: 'Luz antiniebla',
+        type: 'boolean',
+      },
+      intermitenteIzq: {
+        name: 'Intermitente izquierdo',
+        type: 'boolean',
+      },
+      intermitenteDer: {
+        name: 'Intermitente derecho',
+        type: 'boolean',
+      },
     }),
     [t],
   );
