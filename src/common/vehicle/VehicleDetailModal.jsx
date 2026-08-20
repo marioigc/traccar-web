@@ -352,6 +352,18 @@ const VehicleDetailModal = ({ deviceId, position, onClose, disableActions }) => 
                   label={ignition === true ? 'Encendido desde' : 'Última ignición'}
                   value={lastIgnition ? formatTime(lastIgnition, 'minutes') : undefined}
                 />
+                {/* Complementa el "hace X" del encabezado, que sale de
+                    `position.fixTime` (antigüedad del DATO mostrado). Esta fila usa
+                    `device.lastUpdate`: cuándo el EQUIPO habló con el servidor por
+                    última vez. Sin ambos datos, "el GPS duerme estacionado" y "el GPS
+                    está muerto" se ven idénticos. Se pinta en rojo cuando el equipo no
+                    está online — offline y unknown cuentan igual de "no sano": ambos
+                    significan que no hay certeza de que el equipo siga vivo. */}
+                <VehicleStatRow
+                  label="Última conexión"
+                  value={device.lastUpdate ? formatTime(device.lastUpdate, 'minutes') : undefined}
+                  valueColor={device.status !== 'online' ? COLOR_ALERT : undefined}
+                />
               </Box>
             </Box>
 

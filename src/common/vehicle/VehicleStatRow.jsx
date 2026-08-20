@@ -33,7 +33,11 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-const VehicleStatRow = ({ label, value, barPercent, barColor }) => {
+// `valueColor` es opcional: sin él, el valor se ve exactamente igual que
+// siempre (color de texto por defecto de `Typography`). Sirve para casos como
+// "Última conexión", donde un equipo fuera de línea necesita saltar a la
+// vista en vez de leerse como una fecha más.
+const VehicleStatRow = ({ label, value, barPercent, barColor, valueColor }) => {
   const { classes } = useStyles();
 
   if (value === undefined || value === null) {
@@ -53,7 +57,11 @@ const VehicleStatRow = ({ label, value, barPercent, barColor }) => {
           />
         </Box>
       )}
-      <Typography variant="body2" className={classes.value}>
+      <Typography
+        variant="body2"
+        className={classes.value}
+        style={valueColor ? { color: valueColor } : undefined}
+      >
         {value}
       </Typography>
     </Box>
