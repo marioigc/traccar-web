@@ -1,7 +1,6 @@
 // src/common/vehicle/VanDiagram.jsx
 import { makeStyles } from 'tss-react/mui';
 import {
-  isOpen,
   COLOR_OK,
   COLOR_ALERT,
   COLOR_UNKNOWN,
@@ -38,10 +37,14 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-// Puertas y maletero: gris si el equipo no lo reporta, rojo si está abierto.
+// Puertas y maletero: la semántica es la opuesta a los cinturones — abierta
+// (true) es lo malo. Se compara con `=== true`/`=== false` en vez de usar el
+// valor como booleano directo: así, cualquier valor no reconocido cae en
+// COLOR_UNKNOWN en vez de afirmar "cerrada" sobre una puerta sin dato.
 const doorColor = (value) => {
-  if (value === undefined) return COLOR_UNKNOWN;
-  return isOpen(value) ? COLOR_ALERT : COLOR_OK;
+  if (value === true) return COLOR_ALERT;
+  if (value === false) return COLOR_OK;
+  return COLOR_UNKNOWN;
 };
 
 // Cinturones: la semántica se invierte — abrochado (true) es lo bueno.

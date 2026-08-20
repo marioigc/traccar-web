@@ -22,8 +22,14 @@ export const COLOR_LIGHT_OFF = '#3a3f4a';
 // Los estados de apertura llegan como string desde los Atributos Computados, y
 // NO usan el mismo género: las puertas son "Abierta"/"Cerrada" y el maletero es
 // "Abierto"/"Cerrado". Se aceptan ambos, más el booleano por si un dispositivo
-// futuro lo reporta así.
-export const isOpen = (value) => value === true || value === 'Abierta' || value === 'Abierto';
+// futuro lo reporta así. Igual que bool()/parkingBrake(), cualquier otro valor
+// (null, objeto, string atípico de un modelo de GPS nuevo) queda `undefined`
+// en vez de afirmar "cerrada" sobre una puerta de la que no hay dato.
+const doorState = (value) => {
+  if (value === true || value === 'Abierta' || value === 'Abierto') return true;
+  if (value === false || value === 'Cerrada' || value === 'Cerrado') return false;
+  return undefined;
+};
 
 // Un voltaje de 0 no es una medición válida: es lo que reporta el equipo cuando
 // no está leyendo el bus del vehículo (verificado en Furgón 1 con el motor
@@ -77,10 +83,10 @@ export const getVehicleStatus = (position, device) => {
     voltajeVehiculo: validVoltage(a.bateriaVehiculo),
     frenoMano: parkingBrake(a.frenoMano),
 
-    puertaChofer: a.puertaDelIzq,
-    puertaCopiloto: a.puertaDelDer,
-    puertaLateral: a.puertaTrasDer,
-    maletero: a.maletero,
+    puertaChofer: doorState(a.puertaDelIzq),
+    puertaCopiloto: doorState(a.puertaDelDer),
+    puertaLateral: doorState(a.puertaTrasDer),
+    maletero: doorState(a.maletero),
 
     cinturonChofer: bool(a.cinturonDelIzq),
     cinturonCopiloto: bool(a.cinturonDelDer),
