@@ -7,6 +7,7 @@ import {
   COLOR_LIGHT_LOW,
   COLOR_LIGHT_POSITION,
   COLOR_LIGHT_FOG,
+  COLOR_TURN,
   COLOR_LIGHT_OFF,
 } from './vehicleAttributes';
 
@@ -80,10 +81,17 @@ const VanDiagram = ({ status }) => {
     status.luzPosicion,
     status.luzBaja,
     status.luzNiebla,
+    status.intermitenteIzq,
+    status.intermitenteDer,
   ];
   if (bodyFields.every((v) => v === undefined)) {
     return null;
   }
+
+  // Las dos lámparas encendidas al mismo tiempo no es "doble intermitente": es
+  // el botón de emergencia. Cambia solo la etiqueta de la leyenda; el dibujo es
+  // el mismo, porque físicamente son las mismas luces.
+  const emergencia = status.intermitenteIzq === true && status.intermitenteDer === true;
 
   return (
     <>
@@ -225,6 +233,22 @@ const VanDiagram = ({ status }) => {
             stroke={beltColor(status.cinturonCopiloto)}
             strokeWidth="2.5"
           />
+
+          {/*
+            Intermitentes. Son las mismas lámparas físicas en dos funciones: una
+            sola parpadea al virar, las dos a la vez son las balizas de
+            emergencia. Se dibujan como flechas apuntando hacia afuera para que
+            el lado se lea de inmediato, y separadas del cuerpo para no
+            confundirse con las luces delanteras.
+          */}
+          <path
+            d="M 34 150 L 20 165 L 34 180 Z"
+            fill={lightColor(status.intermitenteIzq, COLOR_TURN)}
+          />
+          <path
+            d="M 166 150 L 180 165 L 166 180 Z"
+            fill={lightColor(status.intermitenteDer, COLOR_TURN)}
+          />
         </svg>
       </div>
       <div className={classes.legend}>
@@ -243,6 +267,10 @@ const VanDiagram = ({ status }) => {
         <span>
           <span className={classes.dot} style={{ background: COLOR_LIGHT_POSITION }} />
           Posición
+        </span>
+        <span>
+          <span className={classes.dot} style={{ background: COLOR_TURN }} />
+          {emergencia ? 'Emergencia' : 'Intermitente'}
         </span>
         <span>
           <span className={classes.dot} style={{ background: COLOR_LIGHT_FOG }} />

@@ -17,6 +17,7 @@ export const COLOR_INFO = '#5fa8ff';
 export const COLOR_LIGHT_LOW = '#fff4d6';
 export const COLOR_LIGHT_POSITION = '#ffb84d';
 export const COLOR_LIGHT_FOG = '#ff8c3d';
+export const COLOR_TURN = '#ffa41f';
 export const COLOR_LIGHT_OFF = '#3a3f4a';
 
 // Los estados de apertura llegan como string desde los Atributos Computados, y
@@ -115,6 +116,11 @@ export const getVehicleStatus = (position, device) => {
     cinturonCopiloto: bool(a.cinturonDelDer),
 
     luzPosicion: bool(a.luzPosicion),
+    // Las mismas lámparas cumplen dos funciones: una sola parpadea al virar, y
+    // las dos juntas cuando se pulsa el botón de emergencia. Por eso se leen por
+    // separado y el diagrama decide cómo mostrarlo según cuántas estén activas.
+    intermitenteIzq: bool(a.intermitenteIzq),
+    intermitenteDer: bool(a.intermitenteDer),
     luzBaja: bool(a.luzBaja),
     luzNiebla: bool(a.luzNiebla),
   };
