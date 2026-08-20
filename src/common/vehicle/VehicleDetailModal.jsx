@@ -93,6 +93,13 @@ const useStyles = makeStyles()((theme) => ({
     gap: theme.spacing(1),
     flexWrap: 'wrap',
   },
+  badges: {
+    display: 'flex',
+    gap: theme.spacing(0.5),
+    flexWrap: 'wrap',
+    marginTop: theme.spacing(0.5),
+    marginBottom: theme.spacing(0.5),
+  },
   sub: {
     color: theme.palette.text.secondary,
     display: 'block',
@@ -231,6 +238,11 @@ const VehicleDetailModal = ({ deviceId, position, onClose, disableActions }) => 
     return null;
   }
 
+  // Solo 'online' cuenta como equipo sano. Traccar también usa 'unknown', que aquí
+  // se trata como no-sano: en una flota de servicio técnico, "no confirmado vivo"
+  // merece la misma atención que "caído".
+  const online = device.status === 'online';
+
   const status = getVehicleStatus(position, device);
 
   // "hace X min". Sin esto, una posición de hace 18 horas se lee como el estado
@@ -274,11 +286,30 @@ const VehicleDetailModal = ({ deviceId, position, onClose, disableActions }) => 
               <Box className={classes.colLeft}>
                 <Box className={classes.hero}>
                   <Typography variant="subtitle1">{status.patente || device.name}</Typography>
+                </Box>
+                {/*
+                  Dos estados distintos que el usuario confundía cuando había un solo badge
+                  que decía "Encendido"/"Apagado": ese hablaba del MOTOR, pero se leía como si
+                  el GPS estuviera apagado. Ahora van separados y etiquetados.
+                  - Conexión del equipo: usa las mismas palabras que la lista de dispositivos
+                    de Traccar (`deviceStatusOnline`/`deviceStatusOffline`), para no inventar
+                    términos nuevos dentro de la misma aplicación.
+                  - Motor: lleva la palabra "Motor" adelante, para que "Apagado" no pueda
+                    leerse como el estado del GPS.
+                */}
+                <Box className={classes.badges}>
+                  <Chip
+                    size="small"
+                    label={online ? t('deviceStatusOnline') : t('deviceStatusOffline')}
+                    color={online ? 'success' : 'error'}
+                    variant={online ? 'filled' : 'outlined'}
+                  />
                   {ignition !== undefined && (
                     <Chip
                       size="small"
-                      label={ignition ? 'Encendido' : 'Apagado'}
+                      label={ignition ? 'Motor encendido' : 'Motor apagado'}
                       color={ignition ? 'success' : 'default'}
+                      variant="outlined"
                     />
                   )}
                 </Box>
