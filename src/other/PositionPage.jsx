@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useSelector } from 'react-redux';
 
 import {
@@ -34,6 +34,11 @@ const useStyles = makeStyles()((theme) => ({
     paddingTop: theme.spacing(2),
     paddingBottom: theme.spacing(2),
   },
+  rawHeader: {
+    fontWeight: 600,
+    color: theme.palette.text.secondary,
+    background: theme.palette.action.hover,
+  },
 }));
 
 const PositionPage = () => {
@@ -46,6 +51,19 @@ const PositionPage = () => {
   const { id } = useParams();
 
   const [item, setItem] = useState();
+
+  // Se separan los atributos que tienen nombre legible de los crudos del equipo.
+  // `useMemo` porque `Object.getOwnPropertyNames` sobre ~90 claves corre en cada
+  // render, y esta pantalla se re-renderiza al navegar entre posiciones.
+  const [namedAttributes, rawAttributes] = useMemo(() => {
+    if (!item?.attributes) return [[], []];
+    const named = [];
+    const raw = [];
+    Object.getOwnPropertyNames(item.attributes).forEach((key) => {
+      (positionAttributes[key]?.name ? named : raw).push(key);
+    });
+    return [named, raw];
+  }, [item, positionAttributes]);
 
   useAsyncTask(
     async ({ signal }) => {
@@ -107,12 +125,37 @@ const PositionPage = () => {
                       </TableRow>
                     ))}
                 {item &&
-                  Object.getOwnPropertyNames(item.attributes).map((attribute) => (
+                  namedAttributes.map((attribute) => (
                     <TableRow key={attribute}>
                       <TableCell>{attribute}</TableCell>
                       <TableCell>
-                        <strong>{positionAttributes[attribute]?.name}</strong>
+                        <strong>{positionAttributes[attribute].name}</strong>
                       </TableCell>
+                      <TableCell>
+                        <PositionValue position={item} attribute={attribute} />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                {/*
+                  Los parámetros crudos del equipo (io###) van al final y bajo un
+                  título, en vez de intercalados entre los legibles. Una posición
+                  del Furgón 2 trae 46 de estos contra 43 con nombre: mezclados,
+                  el dato útil queda enterrado. No se ocultan —a veces hace falta
+                  ver el valor crudo para diagnosticar— pero dejan de competir por
+                  la atención con lo que sí se entiende.
+                */}
+                {item && rawAttributes.length > 0 && (
+                  <TableRow>
+                    <TableCell colSpan={3} className={classes.rawHeader}>
+                      Parámetros crudos del equipo ({rawAttributes.length}) — sin traducir
+                    </TableCell>
+                  </TableRow>
+                )}
+                {item &&
+                  rawAttributes.map((attribute) => (
+                    <TableRow key={attribute}>
+                      <TableCell>{attribute}</TableCell>
+                      <TableCell />
                       <TableCell>
                         <PositionValue position={item} attribute={attribute} />
                       </TableCell>
