@@ -69,6 +69,29 @@ const parkingBrake = (value) => {
   return undefined;
 };
 
+// El motor tiene TRES estados, no dos. `ignition` solo dice si hay contacto: con
+// la llave girada pero sin arrancar, `ignition` ya vale 1 y el motor está quieto.
+// Distinguirlos necesita una segunda señal:
+//   - RPM sobre cero: el motor gira. Es la prueba directa, cuando el equipo lee CAN.
+//   - Voltaje sobre ~13.2 V: el alternador está cargando, o sea el motor gira.
+//     Sirve para equipos que no reportan RPM (el FMC920 con dongle OBD2, por ejemplo).
+// Medido en el Furgón 2: 12.36 V solo con contacto, 13.54 V con el motor andando.
+// El umbral queda cómodo entre ambos.
+//
+// Si hay contacto pero ninguna de las dos señales lo confirma, se devuelve
+// 'contacto' — que es literalmente lo único que el dato prueba. Afirmar "andando"
+// sin evidencia sería inventar.
+export const VOLTAJE_ALTERNADOR = 13.2;
+
+export const getEngineState = (ignition, rpm, voltaje) => {
+  if (ignition === undefined) return undefined;
+  if (ignition !== true) return 'apagado';
+  const girando =
+    (typeof rpm === 'number' && rpm > 0) ||
+    (typeof voltaje === 'number' && voltaje >= VOLTAJE_ALTERNADOR);
+  return girando ? 'andando' : 'contacto';
+};
+
 export const getVehicleStatus = (position, device) => {
   const a = position?.attributes || {};
 

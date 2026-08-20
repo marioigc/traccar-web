@@ -38,7 +38,13 @@ import {
   formatNumber,
   formatTime,
 } from '../util/formatter';
-import { getVehicleStatus, COLOR_OK, COLOR_ALERT, COLOR_INFO } from './vehicleAttributes';
+import {
+  getEngineState,
+  getVehicleStatus,
+  COLOR_OK,
+  COLOR_ALERT,
+  COLOR_INFO,
+} from './vehicleAttributes';
 import VanDiagram from './VanDiagram';
 import VehicleStatRow from './VehicleStatRow';
 
@@ -136,6 +142,20 @@ const useStyles = makeStyles()((theme) => ({
 // marca 20 °C — y eso tampoco es una alerta.
 const TEMP_MAX_OK = 105;
 const RPM_MAX = 4000;
+
+// Los tres estados del motor. "Con contacto" es la llave girada sin arrancar:
+// se ve distinto de "andando" porque no es lo mismo para el usuario — un furgón
+// con contacto está consumiendo batería sin cargarla.
+const ENGINE_LABELS = {
+  apagado: 'Motor apagado',
+  contacto: 'Con contacto',
+  andando: 'Motor andando',
+};
+const ENGINE_COLORS = {
+  apagado: 'default',
+  contacto: 'warning',
+  andando: 'success',
+};
 
 const VehicleDetailModal = ({ deviceId, position, onClose, disableActions }) => {
   const { classes } = useStyles();
@@ -245,6 +265,11 @@ const VehicleDetailModal = ({ deviceId, position, onClose, disableActions }) => 
 
   const status = getVehicleStatus(position, device);
 
+  // Tres estados de motor: apagado, con contacto pero sin arrancar, y andando.
+  // Ver `getEngineState` en la capa de datos para cómo se distingue el segundo
+  // del tercero (RPM y voltaje del alternador).
+  const engineState = getEngineState(ignition, status.rpm, status.voltajeVehiculo);
+
   // "hace X min". Sin esto, una posición de hace 18 horas se lee como el estado
   // actual del furgón — que es exactamente el caso real de FURGON_1. Se usa
   // `position.fixTime`, no `device.lastUpdate`: todas las métricas de esta
@@ -304,11 +329,11 @@ const VehicleDetailModal = ({ deviceId, position, onClose, disableActions }) => 
                     color={online ? 'success' : 'error'}
                     variant={online ? 'filled' : 'outlined'}
                   />
-                  {ignition !== undefined && (
+                  {engineState && (
                     <Chip
                       size="small"
-                      label={ignition ? 'Motor encendido' : 'Motor apagado'}
-                      color={ignition ? 'success' : 'default'}
+                      label={ENGINE_LABELS[engineState]}
+                      color={ENGINE_COLORS[engineState]}
                       variant="outlined"
                     />
                   )}
