@@ -57,14 +57,19 @@ const useStyles = makeStyles()((theme) => ({
     padding: theme.spacing(3),
     maxWidth: 640,
     width: '92vw',
-    maxHeight: '90vh',
-    overflow: 'auto',
     outline: 'none',
   },
   close: {
     position: 'absolute',
     top: theme.spacing(1.5),
     right: theme.spacing(1.5),
+  },
+  // El contenedor de scroll va separado de modalBox: si modalBox scrollea, el
+  // ✕ (anclado a este mismo bloque) se desplaza con el contenido. Con esto el
+  // ✕ queda fijo al marco del modal y solo el contenido interno se mueve.
+  scrollArea: {
+    maxHeight: 'calc(90vh - 48px)',
+    overflow: 'auto',
   },
   top: {
     display: 'flex',
@@ -147,6 +152,19 @@ const VehicleDetailModal = ({ deviceId, position, onClose, disableActions }) => 
 
   const [lastIgnition, setLastIgnition] = useState(undefined);
 
+  // El badge informa el estado del VEHÍCULO (motor encendido), no el de la
+  // conexión del equipo — que es lo que pide la spec. `ignition` lo reportan
+  // ambos modelos de GPS. Si no está, no se muestra badge en vez de inventar uno.
+  //
+  // Se calcula aquí —antes del useEffect siguiente, y no junto al resto de
+  // `status` más abajo— porque ese useEffect necesita `ignition` en su array de
+  // dependencias: sin eso, si el motor arranca con el modal ya abierto, la
+  // etiqueta "Encendido desde" se activa pero el valor sigue siendo el de la
+  // ignición anterior hasta que se cierra y reabre el modal.
+  const ignition = position?.attributes?.hasOwnProperty('ignition')
+    ? position.attributes.ignition
+    : undefined;
+
   // La última ignición no viene en la posición: Traccar la registra como evento
   // aparte. Se consulta al abrir el modal, con una ventana de 30 días — FURGON_1
   // llega a estar una semana entera sin encenderse, así que una ventana corta
@@ -178,7 +196,7 @@ const VehicleDetailModal = ({ deviceId, position, onClose, disableActions }) => 
     return () => {
       cancelled = true;
     };
-  }, [deviceId]);
+  }, [deviceId, ignition]);
 
   const handleRemove = useCatch(async (removed) => {
     if (removed) {
@@ -215,13 +233,6 @@ const VehicleDetailModal = ({ deviceId, position, onClose, disableActions }) => 
 
   const status = getVehicleStatus(position, device);
 
-  // El badge informa el estado del VEHÍCULO (motor encendido), no el de la
-  // conexión del equipo — que es lo que pide la spec. `ignition` lo reportan
-  // ambos modelos de GPS. Si no está, no se muestra badge en vez de inventar uno.
-  const ignition = position?.attributes?.hasOwnProperty('ignition')
-    ? position.attributes.ignition
-    : undefined;
-
   // "hace X min". Sin esto, una posición de hace 18 horas se lee como el estado
   // actual del furgón — que es exactamente el caso real de FURGON_1. Se usa
   // `position.fixTime`, no `device.lastUpdate`: todas las métricas de esta
@@ -231,8 +242,12 @@ const VehicleDetailModal = ({ deviceId, position, onClose, disableActions }) => 
   // pantalla.
   const lastUpdate = position?.fixTime ? dayjs(position.fixTime).fromNow() : null;
 
-  const tempAlert =
-    status.tempMotor !== undefined && ignition === true && status.tempMotor > TEMP_MAX_OK;
+  // Solo el numérico depende de la temperatura: el color de "es grave" además
+  // exige el motor encendido (ver comentario de TEMP_MAX_OK), pero una
+  // sobretemperatura con el motor apagado no puede pintarse verde de "OK" —
+  // eso afirmaría que todo está normal cuando no lo está. COLOR_INFO marca ese
+  // término medio: ni alarma ni "todo bien".
+  const tempOverheating = status.tempMotor !== undefined && status.tempMotor > TEMP_MAX_OK;
 
   // Dos atributos independientes: un equipo puede reportar litros sin
   // porcentaje (o viceversa). La fila se muestra con lo que exista, en vez de
@@ -254,155 +269,156 @@ const VehicleDetailModal = ({ deviceId, position, onClose, disableActions }) => 
             <CloseIcon fontSize="small" />
           </IconButton>
 
-          <Box className={classes.top}>
-            <Box className={classes.colLeft}>
-              <Box className={classes.hero}>
-                <Typography variant="subtitle1">{status.patente || device.name}</Typography>
-                {ignition !== undefined && (
-                  <Chip
-                    size="small"
-                    label={ignition ? 'Encendido' : 'Apagado'}
-                    color={ignition ? 'success' : 'default'}
-                  />
-                )}
-              </Box>
-              <Typography variant="caption" className={classes.sub}>
-                {device.name}
-                {lastUpdate && ` · ${lastUpdate}`}
-              </Typography>
-              {position && (
-                <Typography variant="caption" className={classes.address}>
-                  <AddressValue
-                    latitude={position.latitude}
-                    longitude={position.longitude}
-                    originalAddress={position.address}
-                  />
+          <Box className={classes.scrollArea}>
+            <Box className={classes.top}>
+              <Box className={classes.colLeft}>
+                <Box className={classes.hero}>
+                  <Typography variant="subtitle1">{status.patente || device.name}</Typography>
+                  {ignition !== undefined && (
+                    <Chip
+                      size="small"
+                      label={ignition ? 'Encendido' : 'Apagado'}
+                      color={ignition ? 'success' : 'default'}
+                    />
+                  )}
+                </Box>
+                <Typography variant="caption" className={classes.sub}>
+                  {device.name}
+                  {lastUpdate && ` · ${lastUpdate}`}
                 </Typography>
-              )}
-              {position && <VanDiagram status={status} />}
+                {position && (
+                  <Typography variant="caption" className={classes.address}>
+                    <AddressValue
+                      latitude={position.latitude}
+                      longitude={position.longitude}
+                      originalAddress={position.address}
+                    />
+                  </Typography>
+                )}
+                {position && <VanDiagram status={status} />}
+              </Box>
+
+              <Box className={classes.colRight}>
+                <VehicleStatRow
+                  label="Kilometraje"
+                  value={
+                    status.kmReal !== undefined
+                      ? `${status.kmReal.toLocaleString('es-CL', { maximumFractionDigits: 0 })} km`
+                      : undefined
+                  }
+                />
+                <VehicleStatRow
+                  label="Velocidad"
+                  value={
+                    position?.speed !== undefined
+                      ? formatSpeed(position.speed, speedUnit, t)
+                      : undefined
+                  }
+                />
+                <VehicleStatRow
+                  label="RPM"
+                  value={status.rpm !== undefined ? formatNumber(status.rpm, 0) : undefined}
+                  barPercent={status.rpm !== undefined ? (status.rpm / RPM_MAX) * 100 : undefined}
+                  barColor={COLOR_INFO}
+                />
+                <VehicleStatRow
+                  label="Temp. motor"
+                  value={
+                    status.tempMotor !== undefined ? formatTemperature(status.tempMotor) : undefined
+                  }
+                  barPercent={
+                    status.tempMotor !== undefined ? (status.tempMotor / 120) * 100 : undefined
+                  }
+                  barColor={
+                    tempOverheating ? (ignition === true ? COLOR_ALERT : COLOR_INFO) : COLOR_OK
+                  }
+                />
+                <VehicleStatRow
+                  label="Combustible"
+                  value={combustibleValue}
+                  barPercent={status.combustiblePct}
+                  barColor={COLOR_OK}
+                />
+                <VehicleStatRow
+                  label="Voltaje"
+                  value={
+                    status.voltajeVehiculo !== undefined
+                      ? formatVoltage(status.voltajeVehiculo, t)
+                      : undefined
+                  }
+                />
+                <VehicleStatRow label="Freno de mano" value={status.frenoMano} />
+                <VehicleStatRow
+                  label={ignition === true ? 'Encendido desde' : 'Última ignición'}
+                  value={lastIgnition ? formatTime(lastIgnition, 'minutes') : undefined}
+                />
+              </Box>
             </Box>
 
-            <Box className={classes.colRight}>
-              <VehicleStatRow
-                label="Kilometraje"
-                value={
-                  status.kmReal !== undefined
-                    ? `${status.kmReal.toLocaleString('es-CL', { maximumFractionDigits: 0 })} km`
-                    : undefined
-                }
-              />
-              <VehicleStatRow
-                label="Velocidad"
-                value={
-                  position?.speed !== undefined
-                    ? formatSpeed(position.speed, speedUnit, t)
-                    : undefined
-                }
-              />
-              <VehicleStatRow
-                label="RPM"
-                value={status.rpm !== undefined ? formatNumber(status.rpm, 0) : undefined}
-                barPercent={status.rpm !== undefined ? (status.rpm / RPM_MAX) * 100 : undefined}
-                barColor={COLOR_INFO}
-              />
-              <VehicleStatRow
-                label="Temp. motor"
-                value={
-                  status.tempMotor !== undefined ? formatTemperature(status.tempMotor) : undefined
-                }
-                barPercent={
-                  status.tempMotor !== undefined ? (status.tempMotor / 120) * 100 : undefined
-                }
-                barColor={tempAlert ? COLOR_ALERT : COLOR_OK}
-              />
-              <VehicleStatRow
-                label="Combustible"
-                value={combustibleValue}
-                barPercent={status.combustiblePct}
-                barColor={COLOR_OK}
-              />
-              <VehicleStatRow
-                label="Voltaje"
-                value={
-                  status.voltajeVehiculo !== undefined
-                    ? formatVoltage(status.voltajeVehiculo, t)
-                    : undefined
-                }
-              />
-              <VehicleStatRow
-                label="Freno de mano"
-                value={status.frenoMano !== undefined ? String(status.frenoMano) : undefined}
-              />
-              <VehicleStatRow
-                label={ignition === true ? 'Encendido desde' : 'Última ignición'}
-                value={lastIgnition ? formatTime(lastIgnition, 'minutes') : undefined}
-              />
+            {position && (
+              <Link
+                component={RouterLink}
+                to={`/position/${position.id}`}
+                className={classes.masDetalles}
+              >
+                {t('sharedShowDetails')}
+              </Link>
+            )}
+
+            <Box className={classes.actionBar}>
+              <Tooltip title={t('sharedExtra')}>
+                <span>
+                  <IconButton
+                    color="secondary"
+                    onClick={(e) => setAnchorEl(e.currentTarget)}
+                    disabled={!position}
+                  >
+                    <PendingIcon />
+                  </IconButton>
+                </span>
+              </Tooltip>
+              <Tooltip title={t('reportReplay')}>
+                <span>
+                  <IconButton
+                    onClick={() => navigate(`/replay?deviceId=${deviceId}`)}
+                    disabled={disableActions || !position}
+                  >
+                    <RouteIcon />
+                  </IconButton>
+                </span>
+              </Tooltip>
+              <Tooltip title={t('commandTitle')}>
+                <span>
+                  <IconButton
+                    onClick={() => navigate(`/settings/device/${deviceId}/command`)}
+                    disabled={disableActions}
+                  >
+                    <SendIcon />
+                  </IconButton>
+                </span>
+              </Tooltip>
+              <Tooltip title={t('sharedEdit')}>
+                <span>
+                  <IconButton
+                    onClick={() => navigate(`/settings/device/${deviceId}`)}
+                    disabled={disableActions || deviceReadonly}
+                  >
+                    <EditIcon />
+                  </IconButton>
+                </span>
+              </Tooltip>
+              <Tooltip title={t('sharedRemove')}>
+                <span>
+                  <IconButton
+                    color="error"
+                    onClick={() => setRemoving(true)}
+                    disabled={disableActions || deviceReadonly}
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                </span>
+              </Tooltip>
             </Box>
-          </Box>
-
-          {position && (
-            <Link
-              component={RouterLink}
-              to={`/position/${position.id}`}
-              className={classes.masDetalles}
-            >
-              {t('sharedShowDetails')}
-            </Link>
-          )}
-
-          <Box className={classes.actionBar}>
-            <Tooltip title={t('sharedExtra')}>
-              <span>
-                <IconButton
-                  color="secondary"
-                  onClick={(e) => setAnchorEl(e.currentTarget)}
-                  disabled={!position}
-                >
-                  <PendingIcon />
-                </IconButton>
-              </span>
-            </Tooltip>
-            <Tooltip title={t('reportReplay')}>
-              <span>
-                <IconButton
-                  onClick={() => navigate(`/replay?deviceId=${deviceId}`)}
-                  disabled={disableActions || !position}
-                >
-                  <RouteIcon />
-                </IconButton>
-              </span>
-            </Tooltip>
-            <Tooltip title={t('commandTitle')}>
-              <span>
-                <IconButton
-                  onClick={() => navigate(`/settings/device/${deviceId}/command`)}
-                  disabled={disableActions}
-                >
-                  <SendIcon />
-                </IconButton>
-              </span>
-            </Tooltip>
-            <Tooltip title={t('sharedEdit')}>
-              <span>
-                <IconButton
-                  onClick={() => navigate(`/settings/device/${deviceId}`)}
-                  disabled={disableActions || deviceReadonly}
-                >
-                  <EditIcon />
-                </IconButton>
-              </span>
-            </Tooltip>
-            <Tooltip title={t('sharedRemove')}>
-              <span>
-                <IconButton
-                  color="error"
-                  onClick={() => setRemoving(true)}
-                  disabled={disableActions || deviceReadonly}
-                >
-                  <DeleteIcon />
-                </IconButton>
-              </span>
-            </Tooltip>
           </Box>
         </Box>
       </Modal>

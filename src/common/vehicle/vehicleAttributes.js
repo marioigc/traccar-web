@@ -11,7 +11,7 @@
 
 export const COLOR_OK = '#5fd67f';
 export const COLOR_ALERT = '#e05a5a';
-export const COLOR_UNKNOWN = '#555b66';
+export const COLOR_UNKNOWN = '#9098a8';
 export const COLOR_INFO = '#5fa8ff';
 
 export const COLOR_LIGHT_LOW = '#fff4d6';
@@ -39,6 +39,30 @@ const validVoltage = (value) => (typeof value === 'number' && value > 0 ? value 
 // este modal — reciba siempre un número válido o `undefined`.
 const num = (value) => (typeof value === 'number' && Number.isFinite(value) ? value : undefined);
 
+// Los campos booleanos (cinturones, luces) pueden llegar como string
+// ("true"/"false") o número (0/1) si un Atributo Computado nuevo queda mal
+// tipado en el backend al instalar un GPS. Sin este blindaje, VanDiagram.jsx
+// hace `value ? A : B`, y el string "false" es truthy en JavaScript: pintaría
+// un cinturón suelto de verde o una luz apagada como encendida. Igual que
+// num(), cualquier valor no reconocido queda `undefined` en vez de afirmar un
+// estado falso.
+const bool = (value) => {
+  if (value === true || value === 'true' || value === 1) return true;
+  if (value === false || value === 'false' || value === 0) return false;
+  return undefined;
+};
+
+// El freno de mano es el único campo de texto libre: Traccar lo entrega como
+// string ('Activo'/'Liberado'), pero se admite también el booleano por si un
+// equipo futuro lo reporta así. Cualquier otro valor (null, string vacío,
+// número) queda `undefined` en vez de imprimirse literal en pantalla.
+const parkingBrake = (value) => {
+  if (typeof value === 'string' && value !== '') return value;
+  if (value === true) return 'Activo';
+  if (value === false) return 'Liberado';
+  return undefined;
+};
+
 export const getVehicleStatus = (position, device) => {
   const a = position?.attributes || {};
 
@@ -51,18 +75,18 @@ export const getVehicleStatus = (position, device) => {
     combustiblePct: num(a.combustiblePct),
     combustibleLitros: num(a.combustibleLitros),
     voltajeVehiculo: validVoltage(a.bateriaVehiculo),
-    frenoMano: a.frenoMano,
+    frenoMano: parkingBrake(a.frenoMano),
 
     puertaChofer: a.puertaDelIzq,
     puertaCopiloto: a.puertaDelDer,
     puertaLateral: a.puertaTrasDer,
     maletero: a.maletero,
 
-    cinturonChofer: a.cinturonDelIzq,
-    cinturonCopiloto: a.cinturonDelDer,
+    cinturonChofer: bool(a.cinturonDelIzq),
+    cinturonCopiloto: bool(a.cinturonDelDer),
 
-    luzPosicion: a.luzPosicion,
-    luzBaja: a.luzBaja,
-    luzNiebla: a.luzNiebla,
+    luzPosicion: bool(a.luzPosicion),
+    luzBaja: bool(a.luzBaja),
+    luzNiebla: bool(a.luzNiebla),
   };
 };

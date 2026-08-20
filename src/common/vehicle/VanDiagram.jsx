@@ -45,17 +45,23 @@ const doorColor = (value) => {
 };
 
 // Cinturones: la semántica se invierte — abrochado (true) es lo bueno.
+// Se compara con `=== true`/`=== false` en vez de usar el valor como booleano
+// directo: así, cualquier valor no reconocido (un string mal tipado que
+// vehicleAttributes.js no haya sabido normalizar) cae en COLOR_UNKNOWN en vez
+// de afirmar un estado falso.
 const beltColor = (value) => {
-  if (value === undefined) return COLOR_UNKNOWN;
-  return value ? COLOR_OK : COLOR_ALERT;
+  if (value === true) return COLOR_OK;
+  if (value === false) return COLOR_ALERT;
+  return COLOR_UNKNOWN;
 };
 
 // Tres estados, no dos: encendida, apagada, y "el equipo no lo reporta". Pintar
 // como apagada una luz sobre la que no hay dato sería afirmar algo falso, que es
 // justamente lo que la spec prohíbe.
 const lightColor = (value, onColor) => {
-  if (value === undefined) return COLOR_UNKNOWN;
-  return value ? onColor : COLOR_LIGHT_OFF;
+  if (value === true) return onColor;
+  if (value === false) return COLOR_LIGHT_OFF;
+  return COLOR_UNKNOWN;
 };
 
 const VanDiagram = ({ status }) => {
@@ -81,8 +87,8 @@ const VanDiagram = ({ status }) => {
       <div className={classes.wrap}>
         <svg width="150" height="230" viewBox="0 0 200 320">
           {/* espejos */}
-          <rect x="42" y="60" width="10" height="18" rx="3" fill="#3a3f4a" />
-          <rect x="148" y="60" width="10" height="18" rx="3" fill="#3a3f4a" />
+          <rect x="42" y="60" width="10" height="18" rx="3" fill="#454b58" />
+          <rect x="148" y="60" width="10" height="18" rx="3" fill="#454b58" />
 
           {/* carrocería vista desde arriba */}
           <path
@@ -238,6 +244,14 @@ const VanDiagram = ({ status }) => {
         <span>
           <span className={classes.dot} style={{ background: COLOR_LIGHT_FOG }} />
           Niebla
+        </span>
+        <span>
+          <span className={classes.dot} style={{ background: COLOR_LIGHT_OFF }} />
+          Apagada
+        </span>
+        <span>
+          <span className={classes.dot} style={{ background: COLOR_UNKNOWN }} />
+          Sin dato
         </span>
       </div>
     </>
