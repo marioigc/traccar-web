@@ -12,6 +12,7 @@ import RouteIcon from '@mui/icons-material/Route';
 import EventRepeatIcon from '@mui/icons-material/EventRepeat';
 import NotesIcon from '@mui/icons-material/Notes';
 import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
+import MeetingRoomIcon from '@mui/icons-material/MeetingRoom';
 import { useLocation } from 'react-router-dom';
 import { useTranslation } from '../../common/components/LocalizationProvider';
 import { useAdministrator, useRestriction } from '../../common/util/permissions';
@@ -32,7 +33,12 @@ const ReportsMenu = () => {
       return path;
     }
     const params = new URLSearchParams();
-    if (path === '/reports/chart' || path === '/reports/route' || path === '/replay') {
+    if (
+      path === '/reports/chart' ||
+      path === '/reports/route' ||
+      path === '/reports/traceability' ||
+      path === '/replay'
+    ) {
       const [firstDeviceId] = deviceIds;
       if (firstDeviceId != null) {
         params.append('deviceId', firstDeviceId);
@@ -77,6 +83,12 @@ const ReportsMenu = () => {
           link={buildLink('/reports/stops')}
           icon={<PauseCircleFilledIcon />}
           selected={location.pathname === '/reports/stops'}
+        />
+        <MenuItem
+          title={t('reportTraceability')}
+          link={buildLink('/reports/traceability')}
+          icon={<MeetingRoomIcon />}
+          selected={location.pathname === '/reports/traceability'}
         />
         <MenuItem
           title={t('reportSummary')}

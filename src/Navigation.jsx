@@ -27,6 +27,7 @@ const GeofenceReportPage = lazy(() => import('./reports/GeofenceReportPage'));
 const ReplayPage = lazy(() => import('./other/ReplayPage'));
 const TripReportPage = lazy(() => import('./reports/TripReportPage'));
 const StopReportPage = lazy(() => import('./reports/StopReportPage'));
+const TraceabilityReportPage = lazy(() => import('./reports/TraceabilityReportPage'));
 const SummaryReportPage = lazy(() => import('./reports/SummaryReportPage'));
 const ChartReportPage = lazy(() => import('./reports/ChartReportPage'));
 const DriversPage = lazy(() => import('./settings/DriversPage'));
@@ -186,6 +187,7 @@ const Navigation = () => {
             <Route path="geofences" element={<GeofenceReportPage />} />
             <Route path="route" element={<PositionsReportPage />} />
             <Route path="stops" element={<StopReportPage />} />
+            <Route path="traceability" element={<TraceabilityReportPage />} />
             <Route path="summary" element={<SummaryReportPage />} />
             <Route path="trips" element={<TripReportPage />} />
             <Route path="scheduled" element={<ScheduledPage />} />
