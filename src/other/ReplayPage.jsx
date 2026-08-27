@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { IconButton, Paper, Slider, Toolbar, Typography } from '@mui/material';
 import { makeStyles } from 'tss-react/mui';
 import TuneIcon from '@mui/icons-material/Tune';
 import DownloadIcon from '@mui/icons-material/Download';
+import MeetingRoomIcon from '@mui/icons-material/MeetingRoom';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import PauseIcon from '@mui/icons-material/Pause';
 import FastForwardIcon from '@mui/icons-material/FastForward';
@@ -24,6 +25,15 @@ import MapScale from '../map/MapScale';
 import BackIcon from '../common/components/BackIcon';
 import fetchOrThrow from '../common/util/fetchOrThrow';
 import MapOverlay from '../map/overlay/MapOverlay';
+import usePositionAttributes from '../common/attributes/usePositionAttributes';
+import { useAttributePreference } from '../common/util/preferences';
+import {
+  deriveAttributeChanges,
+  deriveVehicleStops,
+  buildStopTimelineItems,
+  describeAttributeChange,
+} from '../common/vehicle/traceability';
+import ReplayTraceabilityPanel from './ReplayTraceabilityPanel';
 
 const useStyles = makeStyles()((theme) => ({
   root: {
@@ -93,8 +103,66 @@ const ReplayPage = () => {
   const [playing, setPlaying] = useState(false);
   const [loading, setLoading] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [traceabilityOpen, setTraceabilityOpen] = useState(false);
 
   const loaded = Boolean(from && to && !loading && positions.length);
+
+  const speedUnit = useAttributePreference('speedUnit');
+  const positionAttributes = usePositionAttributes(t);
+
+  // Cronología de trazabilidad (puertas, cinturones, luces, detenciones) del
+  // recorrido completo. Se recalcula solo cuando cambian las posiciones (un
+  // recorrido puede traer miles), nunca en cada tick de la reproducción; y ni
+  // siquiera eso si el panel está cerrado (comportamiento por defecto).
+  const traceabilityItems = useMemo(() => {
+    if (!traceabilityOpen || !positions.length) {
+      return [];
+    }
+    const attributeItems = deriveAttributeChanges(positions).map((change) => ({
+      id: change.id,
+      time: change.time,
+      text: describeAttributeChange(change, positionAttributes[change.key]?.name || change.key),
+      position: change.position,
+    }));
+    const stopItems = buildStopTimelineItems(deriveVehicleStops(positions));
+    return [...attributeItems, ...stopItems].sort((a, b) => new Date(a.time) - new Date(b.time));
+  }, [positions, positionAttributes, traceabilityOpen]);
+
+  const positionIndexById = useMemo(() => {
+    const map = new Map();
+    positions.forEach((position, i) => map.set(position.id, i));
+    return map;
+  }, [positions]);
+
+  // El evento vigente sí se recalcula en cada tick, pero recorre solo la
+  // cronología ya derivada (cientos de filas como mucho), no las miles de
+  // posiciones del recorrido.
+  const currentTraceabilityItemId = useMemo(() => {
+    const currentPosition = positions[index];
+    if (!traceabilityItems.length || !currentPosition) {
+      return null;
+    }
+    const currentTime = new Date(currentPosition.fixTime).getTime();
+    let currentId = null;
+    for (let i = 0; i < traceabilityItems.length; i += 1) {
+      if (new Date(traceabilityItems[i].time).getTime() <= currentTime) {
+        currentId = traceabilityItems[i].id;
+      } else {
+        break;
+      }
+    }
+    return currentId;
+  }, [traceabilityItems, positions, index]);
+
+  const onSelectTraceabilityItem = useCallback(
+    (item) => {
+      const targetIndex = positionIndexById.get(item.position?.id);
+      if (targetIndex !== undefined) {
+        setIndex(targetIndex);
+      }
+    },
+    [positionIndexById],
+  );
 
   const deviceName = useSelector((state) => {
     if (selectedDeviceId) {
@@ -203,6 +271,12 @@ const ReplayPage = () => {
                 <IconButton onClick={handleDownload}>
                   <DownloadIcon />
                 </IconButton>
+                <IconButton
+                  color={traceabilityOpen ? 'primary' : 'default'}
+                  onClick={() => setTraceabilityOpen((open) => !open)}
+                >
+                  <MeetingRoomIcon />
+                </IconButton>
                 <IconButton edge="end" onClick={() => setFilterOpen((open) => !open)}>
                   <TuneIcon />
                 </IconButton>
@@ -248,6 +322,16 @@ const ReplayPage = () => {
                   {formatTime(positions[index].fixTime, 'seconds')}
                 </Typography>
               </div>
+              {traceabilityOpen && (
+                <ReplayTraceabilityPanel
+                  position={positions[index]}
+                  speedUnit={speedUnit}
+                  t={t}
+                  items={traceabilityItems}
+                  currentItemId={currentTraceabilityItemId}
+                  onSelect={onSelectTraceabilityItem}
+                />
+              )}
             </>
           )}
           <div style={{ display: loaded && !filterOpen ? 'none' : 'block' }}>
