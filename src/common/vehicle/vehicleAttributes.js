@@ -87,12 +87,24 @@ const parkingBrake = (value) => {
 export const VOLTAJE_ALTERNADOR = 13.2;
 
 export const getEngineState = (ignition, rpm, voltaje) => {
-  if (ignition === undefined) return undefined;
-  if (ignition !== true) return 'apagado';
+  // La evidencia de que el motor gira MANDA sobre la señal de contacto. Medido en
+  // el Furgón Ploteado: 25 de 8.092 posiciones traen `ignition = false` con el
+  // motor claramente andando (391 a 825 RPM y el alternador cargando sobre
+  // 13,3 V). Preguntar primero por `ignition` mostraba "Motor apagado" junto a
+  // "483 RPM" en la misma pantalla — una contradicción que el usuario ve.
+  //
+  // `ignition` depende de cómo esté configurada su fuente en el equipo (entrada
+  // digital, voltaje, movimiento o CAN) y puede quedar desincronizada. Las RPM y
+  // el alternador son medidas físicas del motor: si cualquiera dice que gira,
+  // gira.
   const girando =
     (typeof rpm === 'number' && rpm > 0) ||
     (typeof voltaje === 'number' && voltaje >= VOLTAJE_ALTERNADOR);
-  return girando ? 'andando' : 'contacto';
+  if (girando) return 'andando';
+
+  // Sin evidencia de giro, recién ahí manda el contacto.
+  if (ignition === undefined) return undefined;
+  return ignition === true ? 'contacto' : 'apagado';
 };
 
 // Decisión del dueño de SETEL, textual: "si tiene CAN se usa la del CAN, si
