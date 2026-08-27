@@ -41,6 +41,7 @@ import {
 import {
   getEngineState,
   getVehicleStatus,
+  VELOCIDAD_FUENTE_LABELS,
   COLOR_OK,
   COLOR_ALERT,
   COLOR_INFO,
@@ -366,8 +367,10 @@ const VehicleDetailModal = ({ deviceId, position, onClose, disableActions }) => 
                 <VehicleStatRow
                   label="Velocidad"
                   value={
-                    position?.speed !== undefined
-                      ? formatSpeed(position.speed, speedUnit, t)
+                    status.velocidadNudos !== undefined
+                      ? `${formatSpeed(status.velocidadNudos, speedUnit, t)} · ${
+                          VELOCIDAD_FUENTE_LABELS[status.velocidadFuente]
+                        }`
                       : undefined
                   }
                 />

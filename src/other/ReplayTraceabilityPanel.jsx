@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Box, Divider, List, ListItemButton, ListItemText, Typography } from '@mui/material';
 import { makeStyles } from 'tss-react/mui';
 import { formatNumber, formatSpeed, formatTime } from '../common/util/formatter';
+import { getVehicleStatus, VELOCIDAD_FUENTE_LABELS } from '../common/vehicle/vehicleAttributes';
 import VehicleStatRow from '../common/vehicle/VehicleStatRow';
 
 const useStyles = makeStyles()((theme) => ({
@@ -43,6 +44,9 @@ const ReplayTraceabilityPanel = ({ position, speedUnit, t, items, currentItemId,
   }, [currentItemId]);
 
   const rpm = position?.attributes?.rpmReal;
+  // Misma resolución CAN/GPS que el modal de detalle del vehículo: se
+  // centraliza en getVehicleStatus para no repetir la decisión acá.
+  const { velocidadNudos, velocidadFuente } = getVehicleStatus(position);
 
   return (
     <Box className={classes.root}>
@@ -51,8 +55,8 @@ const ReplayTraceabilityPanel = ({ position, speedUnit, t, items, currentItemId,
         <VehicleStatRow
           label={t('positionSpeed')}
           value={
-            position && typeof position.speed === 'number'
-              ? formatSpeed(position.speed, speedUnit, t)
+            velocidadNudos !== undefined
+              ? `${formatSpeed(velocidadNudos, speedUnit, t)} · ${VELOCIDAD_FUENTE_LABELS[velocidadFuente]}`
               : undefined
           }
         />

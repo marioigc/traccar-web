@@ -9,6 +9,8 @@
 // no lo tiene), el valor queda `undefined` y los componentes ocultan esa parte
 // en vez de mostrar un cero falso.
 
+import { speedToKnots } from '../util/converter';
+
 export const COLOR_OK = '#5fd67f';
 export const COLOR_ALERT = '#e05a5a';
 export const COLOR_UNKNOWN = '#9098a8';
@@ -93,11 +95,47 @@ export const getEngineState = (ignition, rpm, voltaje) => {
   return girando ? 'andando' : 'contacto';
 };
 
+// Decisión del dueño de SETEL, textual: "si tiene CAN se usa la del CAN, si
+// no tiene CAN se usa la del GPS". Se resuelve UNA sola vez, acá, para que
+// ninguna pantalla reparta por su cuenta la lógica de "¿este equipo tiene
+// CAN?" — todas consumen el resultado ya decidido.
+//
+// `velocidadReal` (io81) viene en KM/H; `position.speed` (GPS, estándar
+// Traccar) viene en NUDOS. Se devuelve siempre en NUDOS —la unidad que espera
+// `formatSpeed`— para que ningún consumidor tenga que acordarse de convertir.
+// El bug de escala (~1,85x) que tenía el perfil CAN está corregido: perfil
+// nuevo cargado en el equipo, verificado contra 5.339 muestras reales en
+// movimiento (factor CAN/GPS con mediana 1.000).
+//
+// No todos los equipos reportan CAN (el FURGON_1 no tiene ningún atributo
+// CAN): `num()` descarta `undefined`, `null` y strings, así que la ausencia
+// del atributo cae directo al GPS en vez de fallar o mostrar un cero falso.
+export const VELOCIDAD_FUENTE_LABELS = {
+  can: 'CAN',
+  gps: 'GPS',
+};
+
+const vehicleSpeed = (position, attributes) => {
+  const canSpeedKmh = num(attributes.velocidadReal);
+  if (canSpeedKmh !== undefined) {
+    return { velocidadNudos: speedToKnots(canSpeedKmh, 'kmh'), velocidadFuente: 'can' };
+  }
+  const gpsSpeedNudos = num(position?.speed);
+  if (gpsSpeedNudos !== undefined) {
+    return { velocidadNudos: gpsSpeedNudos, velocidadFuente: 'gps' };
+  }
+  return { velocidadNudos: undefined, velocidadFuente: undefined };
+};
+
 export const getVehicleStatus = (position, device) => {
   const a = position?.attributes || {};
+  const { velocidadNudos, velocidadFuente } = vehicleSpeed(position, a);
 
   return {
     patente: device?.attributes?.patente,
+
+    velocidadNudos,
+    velocidadFuente,
 
     kmReal: num(a.kmReal),
     rpm: num(a.rpmReal),

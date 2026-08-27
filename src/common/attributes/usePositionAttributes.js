@@ -440,11 +440,12 @@ export default (t) =>
         type: 'number',
       },
       velocidadReal: {
-        // Bug confirmado de escala (~1,85x) en el perfil CAN de este vehículo.
-        // Se deja visible pero rotulado, en vez de ocultarlo: alguien que lo
-        // seleccione en un reporte tiene que saber que no puede confiar en él.
-        // Tampoco lleva dataType 'speed', que convertiría desde nudos.
-        name: 'Velocidad CAN (no confiable, ver docs)',
+        // El bug de escala (~1,85x) del perfil CAN quedó corregido: perfil
+        // nuevo cargado en el equipo, verificado contra 5.339 muestras reales
+        // en movimiento (factor CAN/GPS con mediana 1.000). Ya viene en
+        // km/h, no en nudos, así que tampoco lleva dataType 'speed' (que
+        // convertiría desde nudos).
+        name: 'Velocidad CAN (km/h)',
         type: 'number',
       },
       tempRefrigerante: {
