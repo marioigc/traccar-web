@@ -87,24 +87,37 @@ const parkingBrake = (value) => {
 export const VOLTAJE_ALTERNADOR = 13.2;
 
 export const getEngineState = (ignition, rpm, voltaje) => {
-  // La evidencia de que el motor gira MANDA sobre la señal de contacto. Medido en
-  // el Furgón Ploteado: 25 de 8.092 posiciones traen `ignition = false` con el
-  // motor claramente andando (391 a 825 RPM y el alternador cargando sobre
-  // 13,3 V). Preguntar primero por `ignition` mostraba "Motor apagado" junto a
-  // "483 RPM" en la misma pantalla — una contradicción que el usuario ve.
+  // `ignition === false` es AUTORITATIVO: el motor está apagado.
   //
-  // `ignition` depende de cómo esté configurada su fuente en el equipo (entrada
-  // digital, voltaje, movimiento o CAN) y puede quedar desincronizada. Las RPM y
-  // el alternador son medidas físicas del motor: si cualquiera dice que gira,
-  // gira.
-  const girando =
+  // Se puede ver una posición con la ignición en 0 y las RPM todavía sobre cero,
+  // pero es el instante de la transición, no un motor andando. Verificado sobre
+  // las 8.092 posiciones del Furgón Ploteado, en los 25 casos que lo presentan:
+  //   - 22 de 25 son la primera posición justo después de apagar.
+  //   - 25 de 25 llegan a 0 RPM poco después (mediana 5 s).
+  //   - 0 de 25 sostienen RPM > 0 en posiciones sucesivas. Si fuera un motor
+  //     realmente andando con la señal mal configurada, aguantaría varias.
+  //   - 17 de 25 traen además una caída de temperatura de más de 20 °C de golpe
+  //     (90 → 64,8 → 20 °C en nueve segundos), que es físicamente imposible:
+  //     son lecturas del CAN volviéndose inválidas mientras el bus se apaga.
+  //
+  // Confiar en las RPM por sobre la ignición hacía que el modal mostrara "Motor
+  // andando" durante esos segundos de apagado.
+  if (ignition === false) return 'apagado';
+
+  if (ignition === true) {
+    const girando =
+      (typeof rpm === 'number' && rpm > 0) ||
+      (typeof voltaje === 'number' && voltaje >= VOLTAJE_ALTERNADOR);
+    return girando ? 'andando' : 'contacto';
+  }
+
+  // Sin dato de ignición (un equipo que no la reporta), lo único que queda es la
+  // evidencia física. Solo se afirma "andando" si el motor demostrablemente gira;
+  // en cualquier otro caso no se muestra estado en vez de inventar uno.
+  const girandoSinIgnicion =
     (typeof rpm === 'number' && rpm > 0) ||
     (typeof voltaje === 'number' && voltaje >= VOLTAJE_ALTERNADOR);
-  if (girando) return 'andando';
-
-  // Sin evidencia de giro, recién ahí manda el contacto.
-  if (ignition === undefined) return undefined;
-  return ignition === true ? 'contacto' : 'apagado';
+  return girandoSinIgnicion ? 'andando' : undefined;
 };
 
 // Decisión del dueño de SETEL, textual: "si tiene CAN se usa la del CAN, si
