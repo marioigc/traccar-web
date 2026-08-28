@@ -179,6 +179,7 @@ const VehicleDetailModal = ({ deviceId, position, onClose, disableActions }) => 
   const [removing, setRemoving] = useState(false);
 
   const [lastIgnition, setLastIgnition] = useState(undefined);
+  const [lastShutdown, setLastShutdown] = useState(undefined);
 
   // El badge informa el estado del VEHÍCULO (motor encendido), no el de la
   // conexión del equipo — que es lo que pide la spec. `ignition` lo reportan
@@ -200,23 +201,32 @@ const VehicleDetailModal = ({ deviceId, position, onClose, disableActions }) => 
   useEffect(() => {
     let cancelled = false;
     setLastIgnition(undefined);
+    setLastShutdown(undefined);
     const to = new Date();
     const from = new Date(to.getTime() - 30 * 24 * 60 * 60 * 1000);
+    // Los dos tipos van en la MISMA consulta: el endpoint acepta el parámetro
+    // `type` repetido (verificado contra producción), así que abrir el modal
+    // sigue costando una sola llamada.
     const query = new URLSearchParams({
       deviceId,
-      type: 'ignitionOn',
       from: from.toISOString(),
       to: to.toISOString(),
     });
+    query.append('type', 'ignitionOn');
+    query.append('type', 'ignitionOff');
     fetchOrThrow(`/api/reports/events?${query.toString()}`, {
       headers: { Accept: 'application/json' },
     })
       .then((response) => response.json())
       .then((events) => {
-        // Vienen en orden ascendente: el último es el más reciente.
-        if (!cancelled && events.length) {
-          setLastIgnition(events[events.length - 1].eventTime);
-        }
+        // Vienen en orden ascendente: el último de cada tipo es el más reciente.
+        if (cancelled) return;
+        const ultimo = (tipo) => {
+          const propios = events.filter((e) => e.type === tipo);
+          return propios.length ? propios[propios.length - 1].eventTime : undefined;
+        };
+        setLastIgnition(ultimo('ignitionOn'));
+        setLastShutdown(ultimo('ignitionOff'));
       })
       // Es un dato secundario: si la consulta falla, la fila no aparece y ya.
       // Molestar con un error en pantalla por esto sería peor que omitirlo.
@@ -410,6 +420,18 @@ const VehicleDetailModal = ({ deviceId, position, onClose, disableActions }) => 
                 <VehicleStatRow
                   label={ignition === true ? 'Encendido desde' : 'Última ignición'}
                   value={lastIgnition ? formatTime(lastIgnition, 'minutes') : undefined}
+                />
+                {/* Cuánto lleva el furgón detenido. Solo tiene sentido con el motor
+                    apagado: andando, la fila de arriba ya dice desde cuándo. Sale
+                    del evento `ignitionOff`, que Traccar registra aparte igual que
+                    el de encendido. */}
+                <VehicleStatRow
+                  label="Motor apagado desde"
+                  value={
+                    ignition !== true && lastShutdown
+                      ? formatTime(lastShutdown, 'minutes')
+                      : undefined
+                  }
                 />
                 {/* Complementa el "hace X" del encabezado, que sale de
                     `position.fixTime` (antigüedad del DATO mostrado). Esta fila usa
