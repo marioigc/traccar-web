@@ -170,7 +170,18 @@ export const getVehicleStatus = (position, device) => {
     // posición trae 538 con la ignición ya en 0; cinco segundos después, 0.
     // Mostrar ese valor contradecía al propio badge de "Motor apagado".
     rpm: a.ignition === false && num(a.rpmReal) !== undefined ? 0 : num(a.rpmReal),
-    tempMotor: num(a.tempRefrigerante),
+
+    // Con el motor apagado el perfil CAN no entrega una temperatura real: manda
+    // un valor por defecto. Medido con el motor apagado, 20,0 °C exactos en el
+    // 97,6% de las posiciones del Furgón Ploteado y el 99,2% de las del Furgón 2;
+    // el resto son los frames de la transición. Un refrigerante de verdad no se
+    // queda clavado en un número — un furgón que pasó la noche afuera estaría
+    // cerca de 5 °C y uno recién apagado sobre 70.
+    //
+    // A diferencia de las RPM, acá no se puede sustituir por un valor cierto: con
+    // el motor apagado NO se sabe a qué temperatura está. Se oculta la fila, que
+    // es lo honesto, en vez de mostrar un dato inventado.
+    tempMotor: a.ignition === false ? undefined : num(a.tempRefrigerante),
     combustiblePct: num(a.combustiblePct),
     combustibleLitros: num(a.combustibleLitros),
     voltajeVehiculo: validVoltage(a.bateriaVehiculo),
