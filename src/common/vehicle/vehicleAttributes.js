@@ -163,7 +163,13 @@ export const getVehicleStatus = (position, device) => {
     velocidadFuente,
 
     kmReal: num(a.kmReal),
-    rpm: num(a.rpmReal),
+    // Con el motor apagado las RPM son 0, punto. El equipo puede entregar un
+    // valor decreciente en la posición justo posterior a girar la llave — el
+    // motor muriendo, capturado por el reporte cada 5 s. Verificado en el Furgón
+    // Ploteado el 28/08 a las 09:15:46: venía a 820 RPM constantes y esa única
+    // posición trae 538 con la ignición ya en 0; cinco segundos después, 0.
+    // Mostrar ese valor contradecía al propio badge de "Motor apagado".
+    rpm: a.ignition === false && num(a.rpmReal) !== undefined ? 0 : num(a.rpmReal),
     tempMotor: num(a.tempRefrigerante),
     combustiblePct: num(a.combustiblePct),
     combustibleLitros: num(a.combustibleLitros),
